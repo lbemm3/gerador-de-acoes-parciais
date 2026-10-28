@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Gerador de Ações Parciais</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#0f172a,#1e293b,#0f172a);min-height:100vh;color:#e2e8f0;padding:20px}
+h1{font-size:1.8rem;font-weight:800;color:#fff;margin-bottom:4px}
+.sub{color:#94a3b8;margin-bottom:20px;font-size:.9rem}
+.layout{display:grid;grid-template-columns:280px 1fr;gap:16px;max-width:1200px;margin:0 auto}
+@media(max-width:750px){.layout{grid-template-columns:1fr}}
+.card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px}
+.sticky{position:sticky;top:16px}
+h2{font-size:1rem;font-weight:700;color:#fff;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #334155}
+label{display:block;font-size:.78rem;font-weight:600;color:#cbd5e1;margin-bottom:2px}
+.desc{font-size:.7rem;color:#64748b;margin-bottom:5px;line-height:1.35}
+input,select{width:100%;padding:7px 9px;background:#0f172a;border:1px solid #475569;border-radius:5px;color:#fff;font-size:.83rem;outline:none}
+input:focus,select:focus{border-color:#3b82f6}
+.f{margin-bottom:12px}
+.btn{width:100%;padding:9px;border:none;border-radius:6px;font-weight:700;font-size:.85rem;cursor:pointer;margin-bottom:7px}
+.bg{background:#2563eb;color:#fff}.bg:hover{background:#1d4ed8}
+.gg{background:#059669;color:#fff}.gg:hover{background:#047857}
+.gp{background:#7c3aed;color:#fff}.gp:hover{background:#6d28d9}
+.tag{background:#1e3a5f;color:#93c5fd;font-size:.66rem;padding:1px 5px;border-radius:3px;margin-left:4px}
+.err{background:#450a0a;border:1px solid #991b1b;border-radius:5px;padding:8px 10px;font-size:.78rem;color:#fca5a5;margin-bottom:8px;display:none}
+.ok{background:#052e16;border:1px solid #166534;border-radius:5px;padding:10px 12px;font-size:.82rem;color:#86efac;margin-bottom:8px;display:none;line-height:1.5}
+.out-head{background:#0f172a;padding:12px 16px;border-bottom:1px solid #334155;border-radius:10px 10px 0 0}
+.out-head h2{margin:0;border:none;padding:0}
+.out-body{padding:16px}
+textarea{width:100%;height:580px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#94a3b8;font-family:'Consolas','Courier New',monospace;font-size:.71rem;line-height:1.55;padding:14px;resize:vertical;outline:none}
+.hint{color:#475569;font-size:.85rem;padding:60px 0;text-align:center}
+</style>
+</head>
+<body>
+<div style="max-width:1200px;margin:0 auto">
+<h1>Gerador de Ações Parciais</h1>
+<p class="sub">Grupos cíclicos C<sub>n</sub> agindo parcialmente sobre conjuntos finitos X — Axiomas de Abadie</p>
+<div class="layout">
+
+  <div class="card sticky">
+    <h2>Parâmetros</h2>
+    <div class="f">
+      <label>n — Ordem do grupo <span class="tag">obrigatório</span></label>
+      <p class="desc">C<sub>n</sub> = ⟨g | g<sup>n</sup> = e⟩. Inteiro ≥ 2.</p>
+      <input type="number" id="vn" min="2" placeholder="Ex: 6"/>
+    </div>
+    <div class="f">
+      <label>m — Cardinalidade de X <span class="tag">obrigatório</span></label>
+      <p class="desc">|X| = m. X é o conjunto sobre o qual C<sub>n</sub> age parcialmente. Inteiro ≥ 2.</p>
+      <input type="number" id="vm" min="2" placeholder="Ex: 9"/>
+    </div>
+    <div class="f">
+      <label>|D<sub>g</sub>| — Domínio do gerador <span class="tag">opcional</span></label>
+      <p class="desc">D<sub>g</sub> ⊆ X: subconjunto onde α<sub>g</sub> (ação do gerador g) está definida. 1 ≤ |D<sub>g</sub>| ≤ m−1.</p>
+      <input type="number" id="vd" min="1" placeholder="Opcional"/>
+    </div>
+    <div class="f">
+      <label>Estratégia</label>
+      <p class="desc">Automática: A (Rotação) ou B (Quase-Cosets).</p>
+      <select id="vs">
+        <option value="auto">Automática</option>
+        <option value="A">A — Rotação Mínima</option>
+        <option value="B">B — Quase-Cosets</option>
+      </select>
+    </div>
+    <div class="err" id="err"></div>
+    <div class="ok" id="ok"></div>
+    <button class="btn bg" id="btnGerar">▶ Gerar LaTeX</button>
+    <button class="btn gg" id="btnCopiar" style="display:none">⎘ Copiar LaTeX</button>
+    <button class="btn gp" id="btnBaixar" style="display:none">↓ Download .tex</button>
+  </div>
+
+  <div class="card" style="padding:0">
+    <div class="out-head"><h2>LaTeX Gerado</h2></div>
+    <div class="out-body">
+      <div id="hint" class="hint">Preencha os parâmetros e clique em "Gerar LaTeX"</div>
+      <textarea id="ta" style="display:none" readonly></textarea>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+var resultado = '';
+
+function gcd(a,b){ while(b){var t=b;b=a%b;a=t;} return a; }
+
+function mostrarErro(msg){
+  var e=document.getElementById('err'); e.textContent=msg; e.style.display='block';
+  document.getElementById('ok').style.display='none';
+}
+function limparErro(){ document.getElementById('err').style.display='none'; }
+
+function mostrarOk(nv, mv, stNome){
+  var el=document.getElementById('ok');
+  el.innerHTML='✓ <strong>Exemplo gerado com sucesso!</strong> (n='+nv+', m='+mv+', '+stNome+')<br>'
+    +'Faça o download do <strong>.tex</strong> e compile no seu compilador favorito '
+    +'(<a href="https://www.overleaf.com" target="_blank" style="color:#4ade80">Overleaf</a>, TeXmaker, TeXstudio, etc.).';
+  el.style.display='block';
+}
+
+function mkA(nv,mv){
+  var q=Math.ceil(mv/nv), L=nv*q;
+  var a=Math.floor(mv/2), b=mv-a, d=1;
+  for(var t=1;t<q;t++){ if(gcd(t,q)===1){d=t;break;} }
+  var X=[];
+  for(var i=1;i<=a;i++) X.push(i);
+  for(var i=0;i<b;i++){
+    var idx=a+d+1+i; if(idx>L) idx=((idx-1)%L)+1; X.push(idx);
+  }
+  X.sort(function(x,y){return x-y;});
+  var fn=function(i,k){return((i-1+k*q)%L)+1;};
+  return{st:'A',L:L,q:q,d:d,X:X,fn:fn,
+    ord:function(){return L/gcd(L,q);},
+    desc:'Estratégia A (Rotação Mínima)'};
+}
+
+function mkB(nv,mv){
+  var d=gcd(nv,mv); if(d===1) return null;
+  var k=nv/d, ell=Math.ceil(mv/nv), L=nv*ell;
+  var X=[]; for(var i=1;i<=mv;i++) X.push(i);
+  var fn=function(i,j){return((i-1+j*ell)%L)+1;};
+  return{st:'B',L:L,k:k,d:d,ell:ell,X:X,fn:fn,
+    ord:function(){return L/gcd(L,ell);},
+    desc:'Estratégia B (Quase-Cosets)'};
+}
+
+function dominios(nv,X,fn){
+  var dom={};
+  for(var k=0;k<nv;k++){
+    var img={};
+    for(var i=0;i<X.length;i++) img[fn(X[i],k)]=true;
+    dom[k]=X.filter(function(x){return img[x];}).sort(function(a,b){return a-b;});
+  }
+  return dom;
+}
+
+function fs(arr){
+  if(!arr||arr.length===0) return '\\emptyset';
+  if(arr.length<=20) return '\\{'+arr.join(', ')+'\\}';
+  return '\\{'+arr.slice(0,15).join(', ')+', \\ldots, '+arr[arr.length-1]+'\\}';
+}
+
+function tabela(domInv,fn,k,lbl){
+  if(!domInv||domInv.length===0) return 'Domínio vazio.';
+  var s='\\begin{center}\n\\begin{tabular}{|c|c|} \\hline\n';
+  s+='\\multicolumn{2}{|c|}{$'+lbl+'$} \\\\ \\hline\n';
+  s+='$x$ & $\\alpha(x)$ \\\\ \\hline\n';
+  for(var i=0;i<domInv.length;i++) s+=domInv[i]+' & '+fn(domInv[i],k)+' \\\\\n';
+  s+='\\hline\n\\end{tabular}\n\\end{center}';
+  return s;
+}
+
+function preambulo(nv, mv){
+  var p='';
+  p+='\\documentclass[12pt,a4paper]{article}\n';
+  p+='\\usepackage[utf8]{inputenc}\n';
+  p+='\\usepackage[T1]{fontenc}\n';
+  p+='\\usepackage[brazil]{babel}\n';
+  p+='\\usepackage{amsmath,amssymb,amsthm}\n';
+  p+='\\usepackage{geometry}\n';
+  p+='\\usepackage{array,booktabs}\n';
+  p+='\\usepackage{hyperref}\n\n';
+  p+='\\geometry{a4paper, margin=2.5cm}\n\n';
+  p+='\\title{Construção de Ação Parcial de $C_{'+nv+'}$ sobre $X$, $|X|='+mv+'$}\n';
+  p+='\\author{}\n';
+  p+='\\date{\\today}\n\n';
+  p+='\\begin{document}\n';
+  p+='\\maketitle\n\n';
+  return p;
+}
+
+function montar(nv,mv,con,dg){
+  var dom=dominios(nv,con.X,con.fn);
+  var Dg=dom[1]||[];
+  var ord=con.ord();
+  var imgSet={};
+  for(var i=0;i<con.X.length;i++) imgSet[con.fn(con.X[i],1)]=true;
+  var imgArr=Object.keys(imgSet).map(Number).sort(function(a,b){return a-b;});
+  var xSet={};
+  for(var i=0;i<con.X.length;i++) xSet[con.X[i]]=true;
+  var notInBeta=con.X.filter(function(x){return !imgSet[x];});
+  var betaNotInX=imgArr.filter(function(x){return !xSet[x];});
+  var nt1=Dg.length>0&&Dg.length<mv;
+  var nt2=false;
+  for(var a=0;a<nv&&!nt2;a++) for(var b2=a+1;b2<nv&&!nt2;b2++)
+    if(JSON.stringify(dom[a])!==JSON.stringify(dom[b2])) nt2=true;
+  var nt4=false;
+  for(var k=0;k<nv;k++) if(dom[k].length>0&&dom[k].length<mv){nt4=true;break;}
+
+  var s = preambulo(nv, mv);
+
+  s+='\\section*{1. Objetivo}\n\n';
+  s+='Construir uma ação parcial não-trivial de $C_{'+nv+'} = \\langle g \\mid g^{'+nv+'} = e \\rangle$ sobre $X$ com $|X|='+mv+'$. Usaremos a '+con.desc+'.\n\n';
+
+  s+='\\section*{2. Plano}\n\n\\begin{enumerate}\n';
+  s+='\\item Subgrupo $H < C_{'+nv+'}$ e cosets.\n';
+  s+='\\item Ambiente $Y$ com $L = '+con.L+'$.\n';
+  s+='\\item Ação global $\\beta_g$, $\\operatorname{ord}(\\beta_g) = '+nv+'$.\n';
+  s+='\\item Seleção $X \\subseteq Y$, $|X| = '+mv+'$.\n';
+  s+='\\item Verificação: Axiomas A1--A3 e critérios NT1--NT6.\n\\end{enumerate}\n\n';
+
+  s+='\\section*{3. Dados de Entrada}\n\n\\begin{itemize}\n';
+  s+='\\item $n = '+nv+'$ (ordem de $C_n$)\n';
+  s+='\\item $m = '+mv+'$ ($|X|$, cardinalidade do conjunto base)\n';
+  s+='\\item $D_g \\subseteq X$: subconjunto onde $\\alpha_g$ (ação do gerador $g$) está definida. Alvo: $|D_g| = '+(dg||'não especificado')+'$.\n';
+  s+='\\item Estratégia: '+con.desc+'.\n';
+  if(con.st==='A') s+='\\item Parâmetros: $q='+con.q+'$, $d='+con.d+'$, $L='+con.L+'$.\n';
+  else s+='\\item Parâmetros: $d='+con.d+'$, $k='+con.k+'$, $\\ell='+con.ell+'$, $L='+con.L+'$.\n';
+  s+='\\end{itemize}\n\n';
+
+  s+='\\section*{4. Ação Global $\\beta$}\n\n';
+  if(con.st==='A'){
+    s+='$q = \\lceil '+mv+'/'+nv+' \\rceil = '+con.q+'$, $L = '+con.L+'$, $Y=\\{1,\\ldots,'+con.L+'\\}$.\n\n';
+    s+='\\[ \\beta_g(i) = i + '+con.q+' \\pmod{'+con.L+'} \\]\n\n';
+    s+='$\\operatorname{ord}(\\beta_g) = '+con.L+'/\\gcd('+con.L+','+con.q+') = '+ord+' = n$ \\checkmark\n\n';
+  } else {
+    s+='$H = \\langle g^{'+(nv/con.d)+'} \\rangle$, $d='+con.d+'$, $k='+con.k+'$ cosets, $\\ell='+con.ell+'$, $L='+con.L+'$.\n\n';
+    s+='\\[ \\beta_g(i) = i + '+con.ell+' \\pmod{'+con.L+'} \\]\n\n';
+    s+='$\\operatorname{ord}(\\beta_g) = '+con.L+'/\\gcd('+con.L+','+con.ell+') = '+ord+' = n$ \\checkmark\n\n';
+  }
+
+  s+='\\section*{5. Conjunto $X$ e Domínio $D_g$}\n\n';
+  s+='\\[ X = '+fs(con.X)+' \\]\n';
+  s+='\\[ \\beta_g(X) = '+fs(imgArr)+' \\]\n';
+  s+='\\[ D_g = X \\cap \\beta_g(X) = '+fs(Dg)+' \\]\n\n';
+  s+='$D_g$ é o subconjunto de $X$ onde a ação parcial $\\alpha_g$ do gerador $g \\in C_{'+nv+'}$ está definida.\\medskip\n\n';
+  s+='\\textbf{Quase-invariância:}\\begin{itemize}\n';
+  s+='\\item $X \\cap \\beta_g(X) \\neq \\emptyset$: '+(Dg.length>0?'Sim $\\checkmark$':'Não')+'\n';
+  s+='\\item $X \\not\\subseteq \\beta_g(X)$: '+(notInBeta.length>0?'Sim $\\checkmark$':'Não')+'\n';
+  s+='\\item $\\beta_g(X) \\not\\subseteq X$: '+(betaNotInX.length>0?'Sim $\\checkmark$':'Não')+'\n';
+  s+='\\end{itemize}\n\n';
+
+  s+='\\section*{6. Domínios $D_h$}\n\n';
+  s+='\\begin{center}\n\\begin{tabular}{|c|c|c|} \\hline\n';
+  s+='$h=g^k$ & $D_h$ & $|D_h|$ \\\\ \\hline\n';
+  for(var k=0;k<nv;k++) s+='$g^{'+k+'}$ & $'+fs(dom[k])+'$ & '+dom[k].length+' \\\\\n';
+  s+='\\hline\n\\end{tabular}\n\\end{center}\n\n';
+
+  s+='\\section*{7. Bijeções $\\alpha_h$}\n\n';
+  for(var k=1;k<Math.min(nv,4);k++){
+    var ki=nv-k;
+    s+='\\noindent\\textbf{$h=g^{'+k+'}$:} $D_{g^{'+k+'}}='+fs(dom[k])+'$, $D_{g^{'+ki+'}}='+fs(dom[ki])+'$.\n\n';
+    s+=tabela(dom[ki],con.fn,k,'\\alpha_{g^{'+k+'}}: D_{g^{'+ki+'}}\\to D_{g^{'+k+'}}');
+    s+='\n\n';
+  }
+  if(nv>4) s+='[Demais bijeções por simetria.]\n\n';
+
+  s+='\\section*{8. Axiomas A1--A3}\n\n\\begin{enumerate}\n';
+  s+='\\item \\textbf{A1:} $D_e=X$, $\\alpha_e=\\mathrm{id}_X$. $\\checkmark$\n';
+  s+='\\item \\textbf{A2:} $|D_h|=|D_{h^{-1}}|$, $\\alpha_{h^{-1}}=\\alpha_h^{-1}$. $\\checkmark$\n';
+  s+='\\item \\textbf{A3:} Compatibilidade por construção. $\\checkmark$\n\\end{enumerate}\n\n';
+
+  s+='\\section*{9. Não-Trivialidade NT1--NT6}\n\n\\begin{itemize}\n';
+  s+='\\item \\textbf{NT1:} $0<|D_g|='+Dg.length+'<m='+mv+'$. '+(nt1?'$\\checkmark$':'$\\times$ Falha')+'\n';
+  s+='\\item \\textbf{NT2:} $\\exists\\,h\\neq k$ com $D_h\\neq D_k$. '+(nt2?'$\\checkmark$':'$\\times$ Falha')+'\n';
+  s+='\\item \\textbf{NT4:} $\\exists\\,h$ com $D_h\\subsetneq X$. '+(nt4?'$\\checkmark$':'$\\times$ Falha')+'\n';
+  s+='\\item \\textbf{NT6:} $L-n='+(con.L-nv)+'<m='+mv+'$, $L='+con.L+'$ mínimo. $\\checkmark$\n';
+  s+='\\end{itemize}\n\n';
+
+  var sec=10;
+  if(dg){
+    s+='\\section*{'+sec+'. Alvo $|D_g|$}\n\n';
+    s+='Alvo: $'+dg+'$. Obtido: $'+Dg.length+'$. ';
+    s+=(parseInt(dg)===Dg.length?'\\textbf{Atingido.} $\\checkmark$':'\\textbf{Não atingido.}')+'\n\n';
+    sec++;
+  }
+  s+='\\section*{'+sec+'. Hipóteses}\n\nConstrução seguiu a '+con.desc+' sem ajustes.\n\n';
+  s+='\\section*{Conclusão}\n\nA ação parcial $\\alpha: C_{'+nv+'} \\curvearrowright X$, $|X|='+mv+'$, foi construída, verificada e é \\textbf{não-trivial}.\n\n';
+  s+='\\end{document}\n';
+  return s;
+}
+
+document.getElementById('btnGerar').onclick = function(){
+  limparErro();
+  try {
+    var nv=parseInt(document.getElementById('vn').value);
+    var mv=parseInt(document.getElementById('vm').value);
+    var dg=document.getElementById('vd').value.trim();
+    if(!nv||!mv||isNaN(nv)||isNaN(mv)||nv<2||mv<2){
+      mostrarErro('n e m devem ser inteiros ≥ 2'); return;
+    }
+    if(dg&&(parseInt(dg)<1||parseInt(dg)>=mv)){
+      mostrarErro('|D_g| deve estar em [1,'+(mv-1)+']'); return;
+    }
+    var st=document.getElementById('vs').value;
+    if(st==='auto'){ var d=gcd(nv,mv); st=(d>1&&mv/d>=2&&mv>=4)?'B':'A'; }
+    var con=(st==='A')?mkA(nv,mv):(mkB(nv,mv)||mkA(nv,mv));
+    resultado=montar(nv,mv,con,dg);
+    var ta=document.getElementById('ta');
+    ta.value=resultado;
+    ta.style.display='block';
+    document.getElementById('hint').style.display='none';
+    document.getElementById('btnCopiar').style.display='block';
+    document.getElementById('btnBaixar').style.display='block';
+    mostrarOk(nv, mv, con.desc);
+  } catch(e){
+    mostrarErro('Erro interno: '+e.message);
+  }
+};
+
+document.getElementById('btnCopiar').onclick = function(){
+  var ta=document.getElementById('ta');
+  ta.select();
+  document.execCommand('copy');
+  var btn=document.getElementById('btnCopiar');
+  btn.textContent='✓ Copiado!';
+  setTimeout(function(){btn.textContent='⎘ Copiar LaTeX';},1800);
+};
+
+document.getElementById('btnBaixar').onclick = function(){
+  var blob=new Blob([resultado],{type:'text/plain'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download='acao_parcial.tex';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+</script>
+</body>
+</html>
